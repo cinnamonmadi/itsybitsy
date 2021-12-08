@@ -7,25 +7,21 @@
 [sub_resource type="RectangleShape2D" id=1]
 extents = Vector2( 8.80203, 5.72906 )
 
+[sub_resource type="AtlasTexture" id=6]
+atlas = ExtResource( 3 )
+region = Rect2( 38, 0, 19, 20 )
+
 [sub_resource type="AtlasTexture" id=2]
 atlas = ExtResource( 1 )
 region = Rect2( 0, 0, 20, 14 )
-
-[sub_resource type="AtlasTexture" id=3]
-atlas = ExtResource( 3 )
-region = Rect2( 0, 0, 19, 20 )
 
 [sub_resource type="AtlasTexture" id=4]
 atlas = ExtResource( 3 )
 region = Rect2( 19, 0, 19, 20 )
 
-[sub_resource type="AtlasTexture" id=5]
+[sub_resource type="AtlasTexture" id=3]
 atlas = ExtResource( 3 )
-region = Rect2( 57, 0, 19, 20 )
-
-[sub_resource type="AtlasTexture" id=6]
-atlas = ExtResource( 3 )
-region = Rect2( 38, 0, 19, 20 )
+region = Rect2( 0, 0, 19, 20 )
 
 [sub_resource type="AtlasTexture" id=7]
 atlas = ExtResource( 1 )
@@ -35,16 +31,20 @@ region = Rect2( 20, 0, 20, 14 )
 atlas = ExtResource( 1 )
 region = Rect2( 40, 0, 20, 14 )
 
+[sub_resource type="AtlasTexture" id=5]
+atlas = ExtResource( 3 )
+region = Rect2( 57, 0, 19, 20 )
+
 [sub_resource type="SpriteFrames" id=9]
 animations = [ {
+"frames": [ SubResource( 6 ) ],
+"loop": true,
+"name": "jump_peak",
+"speed": 5.0
+}, {
 "frames": [ SubResource( 2 ) ],
 "loop": true,
 "name": "idle",
-"speed": 5.0
-}, {
-"frames": [ SubResource( 3 ) ],
-"loop": true,
-"name": "walljump",
 "speed": 5.0
 }, {
 "frames": [ SubResource( 4 ) ],
@@ -52,19 +52,19 @@ animations = [ {
 "name": "jump",
 "speed": 5.0
 }, {
-"frames": [ SubResource( 5 ) ],
+"frames": [ SubResource( 3 ) ],
 "loop": true,
-"name": "jump 3",
-"speed": 5.0
-}, {
-"frames": [ SubResource( 6 ) ],
-"loop": true,
-"name": "jump 2",
+"name": "walljump",
 "speed": 5.0
 }, {
 "frames": [ SubResource( 7 ), SubResource( 8 ) ],
 "loop": true,
 "name": "run",
+"speed": 5.0
+}, {
+"frames": [ SubResource( 5 ) ],
+"loop": true,
+"name": "fall",
 "speed": 5.0
 } ]
 
@@ -76,11 +76,13 @@ shape = SubResource( 1 )
 
 [node name="sprite" type="AnimatedSprite" parent="."]
 frames = SubResource( 9 )
-animation = "jump"
+animation = "fall"
 
 [node name="jump_input_timer" type="Timer" parent="."]
+one_shot = true
 
 [node name="coyote_timer" type="Timer" parent="."]
+one_shot = true
 
 [node name="web" type="Line2D" parent="."]
 width = 2.0

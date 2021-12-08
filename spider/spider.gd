@@ -7,27 +7,30 @@ onready var web = $web
 onready var web_raycast = $web_raycast
 onready var tilemap = get_parent().find_node("tilemap")
 
-const SPEED = 100
-const GRAVITY = 3
-const MAX_FALL_SPEED = 150
+const SPEED = 150
+const GRAVITY = 6
+const MAX_SWING_SPEED = 200
+const MAX_FALL_SPEED = 300
 const JUMP_IMPULSE = 200
 const JUMP_INPUT_DURATION = 0.06
 const COYOTE_TIME_DURATION = 0.06
 const WEB_RADIUS = 150
 const TILE_SIZE = 32
 
+var v_direction = 0
 var direction = 0
 var grounded = false
 var velocity = Vector2.ZERO
 var web_position = null
+var swing_speed = 0
 
 func _ready():
 	web.add_point(Vector2.ZERO)
 	web.add_point(Vector2.ZERO)
 
-func _physics_process(_delta):
+func _physics_process(delta):
 	handle_input()
-	move()
+	move(delta)
 	update_web()
 	update_sprite()
 
@@ -46,14 +49,75 @@ func handle_input():
 			direction = -1
 		else:
 			direction = 0
+	if Input.is_action_just_pressed("up"):
+		v_direction = -1
+	if Input.is_action_just_pressed("down"):
+		v_direction = 1
+	if Input.is_action_just_released("up"):
+		if Input.is_action_pressed("down"):
+			v_direction = 1
+		else:
+			v_direction = 0
+	if Input.is_action_just_released("down"):
+		if Input.is_action_pressed("up"):
+			v_direction = -1
+		else:
+			v_direction = 0
 	if Input.is_action_just_pressed("jump"):
 		jump_input_timer.start(JUMP_INPUT_DURATION)
 	if Input.is_action_just_pressed("web"):
-		websling()
+		web_sling()
+	if Input.is_action_just_released("web"):
+		web_release()
 
-func move():
-	velocity.x = direction * SPEED
-	velocity.y += GRAVITY
+func move(delta):
+	if web_position != null:
+		# Web pulls player towards the bottom
+		var web_pull_direction = 0
+		if web_position.x - position.x > 5:
+			web_pull_direction = 1
+		elif web_position.x - position.x < 5:
+			web_pull_direction = -1
+		swing_speed += web_pull_direction * 5
+
+		# Player input swings web left and right
+		if position.y > web_position.y:
+			swing_speed += direction * 5
+
+		# Gradual drag
+		swing_speed *= 0.99
+
+		# Limit the swing speed
+		if swing_speed > MAX_SWING_SPEED:
+			swing_speed = MAX_SWING_SPEED
+
+		# Set velocity based on the swing direction
+		var swing_direction = 0
+		if swing_speed > 0:
+			swing_direction = 1
+		elif swing_speed < 0:
+			swing_direction = -1
+		if swing_direction == 0:
+			velocity = Vector2.ZERO
+		else:
+			velocity = (web_position - position).normalized().rotated(swing_direction * PI / 2) * abs(swing_speed)
+
+		if v_direction != 0:
+			var climb_vector = (web_position - position).normalized()
+			if v_direction == 1:
+				climb_vector = climb_vector.rotated(PI)
+			velocity += climb_vector * 20
+	else:
+		if grounded:
+			velocity.x = direction * SPEED
+		else:
+			velocity.x += direction * 30
+			if velocity.x > SPEED:
+				velocity.x = SPEED
+			elif velocity.x < -SPEED:
+				velocity.x = -SPEED
+			velocity.x *= 0.99
+		velocity.y += GRAVITY
 
 	var was_grounded = grounded
 	grounded = is_on_floor()
@@ -67,15 +131,27 @@ func move():
 	if velocity.y > MAX_FALL_SPEED:
 		velocity.y = MAX_FALL_SPEED
 
-	var _collisions = move_and_slide(velocity, Vector2(0, -1))
+	if web_position == null:
+		var _collisions = move_and_slide(velocity, Vector2(0, -1))
+	else:
+		var _collisions = move_and_collide(velocity * delta)
 
 func jump():
 	self.velocity.y = -JUMP_IMPULSE
 	grounded = false
 
 func update_sprite():
-	sprite.play("idle")
-	if (direction == -1 and sprite.flip_h) or (direction == 1 and not sprite.flip_h):
+	if direction == 0 and grounded:
+		sprite.play("idle")
+	elif direction != 0 and grounded:
+		sprite.play("run")
+	elif not grounded and (web_position != null or velocity.y > 0):
+		sprite.play("fall")
+	elif not grounded and abs(velocity.y) < 25 and web_position == null:
+		sprite.play("jump_peak")
+	elif not grounded and velocity.y < 0 and web_position == null:
+		sprite.play("jump")
+	if (direction == 1 and sprite.flip_h) or (direction == -1 and not sprite.flip_h):
 		sprite.flip_h = not sprite.flip_h
 
 func update_web():
@@ -123,5 +199,12 @@ func nearest_web_tile():
 
 	return nearest_tile
 
-func websling():
+func web_sling():
 	web_position = nearest_web_tile()
+	if web_position != null:
+		swing_speed = velocity.length()
+		if position.x - web_position.x > 5:
+			swing_speed *= -1
+
+func web_release():
+	web_position = null
