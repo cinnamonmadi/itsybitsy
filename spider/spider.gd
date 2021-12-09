@@ -153,6 +153,8 @@ func update_sprite():
 		sprite.play("jump")
 	if (direction == 1 and sprite.flip_h) or (direction == -1 and not sprite.flip_h):
 		sprite.flip_h = not sprite.flip_h
+	if Input.is_action_pressed("down") and grounded:
+		sprite.play("crouch")
 
 func update_web():
 	# if web_position != null and position.distance_to(web_position) > WEB_RADIUS:
