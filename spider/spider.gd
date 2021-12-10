@@ -25,6 +25,7 @@ var grounded = false
 var velocity = Vector2.ZERO
 var web_position = null
 var swing_speed = 0
+var wall_climb_direction = 0
 
 func _ready():
 	web.add_point(Vector2.ZERO)
@@ -111,7 +112,10 @@ func move():
 				climb_vector = climb_vector.rotated(PI)
 			velocity += climb_vector * WEB_CLIMB_SPEED
 	else:
-		if grounded and direction.y == 1:
+		if wall_climb_direction != 0:
+			velocity.x = wall_climb_direction * 5
+			velocity.y = direction.y * SPEED
+		elif grounded and direction.y == 1:
 			velocity.x = 0
 		elif grounded:
 			velocity.x = direction.x * SPEED
@@ -122,13 +126,16 @@ func move():
 			elif velocity.x < -SPEED:
 				velocity.x = -SPEED
 			velocity.x *= 0.99
-		velocity.y += GRAVITY
+		if wall_climb_direction == 0:
+			velocity.y += GRAVITY
 
 	var was_grounded = grounded
 	grounded = is_on_floor()
+	if grounded:
+		wall_climb_direction = 0
 	if was_grounded and not grounded:
 		coyote_timer.start(COYOTE_TIME_DURATION)
-	if (grounded or not coyote_timer.is_stopped()) and not jump_input_timer.is_stopped():
+	if (grounded or not coyote_timer.is_stopped() or wall_climb_direction != 0) and not jump_input_timer.is_stopped():
 		jump_input_timer.stop()
 		jump()
 	if grounded and velocity.y >= 5:
@@ -136,18 +143,31 @@ func move():
 	if velocity.y > MAX_FALL_SPEED:
 		velocity.y = MAX_FALL_SPEED
 
-	var _collisions = move_and_slide(velocity, Vector2(0, -1))
+	var _linear_velocity = move_and_slide(velocity, Vector2(0, -1))
+
+	# Check to see if we are wall climbing
+	wall_climb_direction = 0
+	for i in get_slide_count():
+		if velocity.x != 0:
+			var wall_position = position + (Vector2(velocity.x, 0).normalized() * (float(TILE_SIZE) / 2))
+			var wall_tile = tilemap.world_to_map(wall_position)
+			if tilemap.get_cellv(wall_tile) == 1:
+				wall_climb_direction = Vector2(velocity.x, 0).normalized().x
+				break
 
 func jump():
-	self.velocity.y = -JUMP_IMPULSE
+	velocity.y = -JUMP_IMPULSE
 	grounded = false
+	if wall_climb_direction != 0:
+		velocity.x = JUMP_IMPULSE * wall_climb_direction * -1
+		wall_climb_direction = 0
 
 func update_sprite():
 	if grounded and direction.y == 1:
 		sprite.play("crouch")
-	elif direction.x == 0 and grounded:
+	elif (direction.x == 0 and grounded) or (direction.y == 0 and wall_climb_direction != 0):
 		sprite.play("idle")
-	elif direction.x != 0 and grounded:
+	elif (direction.x != 0 and grounded) or (direction.y != 0 and wall_climb_direction != 0):
 		sprite.play("run")
 	elif not grounded and (web_position != null or velocity.y > 0):
 		sprite.play("fall")
@@ -155,8 +175,20 @@ func update_sprite():
 		sprite.play("jump_peak")
 	elif not grounded and velocity.y < 0 and web_position == null:
 		sprite.play("jump")
-	if (direction.x == 1 and sprite.flip_h) or (direction.x == -1 and not sprite.flip_h):
-		sprite.flip_h = not sprite.flip_h
+
+	sprite.rotation_degrees = wall_climb_direction * -90
+	if wall_climb_direction == 0:
+		sprite.offset.y = 0
+		if (direction.x == 1 and sprite.flip_h) or (direction.x == -1 and not sprite.flip_h):
+			sprite.flip_h = not sprite.flip_h
+	elif wall_climb_direction == -1:
+		sprite.offset.y = 3
+		if (direction.y == 1 and sprite.flip_h) or (direction.y == -1 and not sprite.flip_h):
+			sprite.flip_h = not sprite.flip_h
+	elif wall_climb_direction == 1:
+		sprite.offset.y = 4
+		if (direction.y == -1 and sprite.flip_h) or (direction.y == 1 and not sprite.flip_h):
+			sprite.flip_h = not sprite.flip_h
 
 func update_web():
 	if web_position == null:
