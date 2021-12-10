@@ -15,10 +15,12 @@ const JUMP_IMPULSE = 200
 const JUMP_INPUT_DURATION = 0.06
 const COYOTE_TIME_DURATION = 0.06
 const WEB_RADIUS = 150
+const WEB_IMPULSE_SPEED = 5
+const WEB_CLIMB_SPEED = 30
 const TILE_SIZE = 32
 
 var v_direction = 0
-var direction = 0
+var direction = Vector2.ZERO
 var grounded = false
 var velocity = Vector2.ZERO
 var web_position = null
@@ -28,41 +30,41 @@ func _ready():
 	web.add_point(Vector2.ZERO)
 	web.add_point(Vector2.ZERO)
 
-func _physics_process(delta):
+func _physics_process(_delta):
 	handle_input()
-	move(delta)
+	move()
 	update_web()
 	update_sprite()
 
 func handle_input():
 	if Input.is_action_just_pressed("left"):
-		direction = -1
+		direction.x = -1
 	if Input.is_action_just_pressed("right"):
-		direction = 1
+		direction.x = 1
 	if Input.is_action_just_released("left"):
 		if Input.is_action_pressed("right"):
-			direction = 1
+			direction.x = 1
 		else:
-			direction = 0
+			direction.x = 0
 	if Input.is_action_just_released("right"):
 		if Input.is_action_pressed("left"):
-			direction = -1
+			direction.x = -1
 		else:
-			direction = 0
+			direction.x = 0
 	if Input.is_action_just_pressed("up"):
-		v_direction = -1
+		direction.y = -1
 	if Input.is_action_just_pressed("down"):
-		v_direction = 1
+		direction.y = 1
 	if Input.is_action_just_released("up"):
 		if Input.is_action_pressed("down"):
-			v_direction = 1
+			direction.y = 1
 		else:
-			v_direction = 0
+			direction.y = 0
 	if Input.is_action_just_released("down"):
 		if Input.is_action_pressed("up"):
-			v_direction = -1
+			direction.y = -1
 		else:
-			v_direction = 0
+			direction.y = 0
 	if Input.is_action_just_pressed("jump"):
 		jump_input_timer.start(JUMP_INPUT_DURATION)
 	if Input.is_action_just_pressed("web"):
@@ -70,8 +72,8 @@ func handle_input():
 	if Input.is_action_just_released("web"):
 		web_release()
 
-func move(delta):
-	if web_position != null:
+func move():
+	if not grounded and web_position != null:
 		# Web pulls player towards the bottom
 		var web_pull_direction = 0
 		if web_position.x - position.x > 5:
@@ -82,7 +84,7 @@ func move(delta):
 
 		# Player input swings web left and right
 		if position.y > web_position.y:
-			swing_speed += direction * 5
+			swing_speed += direction.x * WEB_IMPULSE_SPEED
 
 		# Gradual drag
 		swing_speed *= 0.99
@@ -102,16 +104,19 @@ func move(delta):
 		else:
 			velocity = (web_position - position).normalized().rotated(swing_direction * PI / 2) * abs(swing_speed)
 
-		if v_direction != 0:
+		# Player input climbs them up or down the web
+		if direction.y != 0:
 			var climb_vector = (web_position - position).normalized()
-			if v_direction == 1:
+			if direction.y == 1:
 				climb_vector = climb_vector.rotated(PI)
-			velocity += climb_vector * 20
+			velocity += climb_vector * WEB_CLIMB_SPEED
 	else:
-		if grounded:
-			velocity.x = direction * SPEED
+		if grounded and direction.y == 1:
+			velocity.x = 0
+		elif grounded:
+			velocity.x = direction.x * SPEED
 		else:
-			velocity.x += direction * 30
+			velocity.x += direction.x * 30
 			if velocity.x > SPEED:
 				velocity.x = SPEED
 			elif velocity.x < -SPEED:
@@ -131,19 +136,18 @@ func move(delta):
 	if velocity.y > MAX_FALL_SPEED:
 		velocity.y = MAX_FALL_SPEED
 
-	if web_position == null:
-		var _collisions = move_and_slide(velocity, Vector2(0, -1))
-	else:
-		var _collisions = move_and_collide(velocity * delta)
+	var _collisions = move_and_slide(velocity, Vector2(0, -1))
 
 func jump():
 	self.velocity.y = -JUMP_IMPULSE
 	grounded = false
 
 func update_sprite():
-	if direction == 0 and grounded:
+	if grounded and direction.y == 1:
+		sprite.play("crouch")
+	elif direction.x == 0 and grounded:
 		sprite.play("idle")
-	elif direction != 0 and grounded:
+	elif direction.x != 0 and grounded:
 		sprite.play("run")
 	elif not grounded and (web_position != null or velocity.y > 0):
 		sprite.play("fall")
@@ -151,14 +155,10 @@ func update_sprite():
 		sprite.play("jump_peak")
 	elif not grounded and velocity.y < 0 and web_position == null:
 		sprite.play("jump")
-	if (direction == 1 and sprite.flip_h) or (direction == -1 and not sprite.flip_h):
+	if (direction.x == 1 and sprite.flip_h) or (direction.x == -1 and not sprite.flip_h):
 		sprite.flip_h = not sprite.flip_h
-	if Input.is_action_pressed("down") and grounded:
-		sprite.play("crouch")
 
 func update_web():
-	# if web_position != null and position.distance_to(web_position) > WEB_RADIUS:
-		# web_position = null
 	if web_position == null:
 		web.set_point_position(1, Vector2.ZERO)
 	else:
@@ -170,6 +170,12 @@ func tile_distance(tile_position):
 func nearest_web_tile():
 	var nearest_tile = null
 	var nearest_tile_dist = -1
+
+	var aim_direction = velocity.normalized()
+	if aim_direction.y > 0:
+		aim_direction.y = 0
+	aim_direction += direction
+	var position_offset = position + (aim_direction.normalized() * (TILE_SIZE * 1.5))
 
 	var start = Vector2(floor((position.x - WEB_RADIUS) / TILE_SIZE), floor((position.y - WEB_RADIUS) / TILE_SIZE))
 	var end = Vector2(floor((position.x + WEB_RADIUS) / TILE_SIZE), floor((position.y + WEB_RADIUS) / TILE_SIZE))
@@ -195,9 +201,9 @@ func nearest_web_tile():
 			if tile_center.distance_to(raycast_point) > sqrt(2 * pow(TILE_SIZE / 2.0, 2)):
 				continue
 
-			if nearest_tile == null or position.distance_to(raycast_point) < nearest_tile_dist:
+			if nearest_tile == null or position_offset.distance_to(raycast_point) < nearest_tile_dist:
 				nearest_tile = raycast_point
-				nearest_tile_dist = position.distance_to(raycast_point)
+				nearest_tile_dist = position_offset.distance_to(raycast_point)
 
 	return nearest_tile
 
