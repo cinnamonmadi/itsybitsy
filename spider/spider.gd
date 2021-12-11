@@ -216,7 +216,21 @@ func update_web():
 	if web_position == null:
 		web.set_point_position(1, Vector2.ZERO)
 	else:
-		web.set_point_position(1, web_position - position)
+		if check_web_collision():
+			web_position = null
+		else:
+			web.set_point_position(1, web_position - position)
+
+func check_web_collision():
+	var STEP = 8
+	var web_direction = (web_position - position).normalized()
+	var check_point = position + (web_direction * STEP)
+	while check_point.distance_to(web_position) > STEP:
+		if tilemap.get_cellv(tilemap.world_to_map(check_point)) != -1:
+			print("player tile: ", tilemap.world_to_map(position), " vs failed pos: ", tilemap.world_to_map(check_point), " vs web tile: ", tilemap.world_to_map(web_position))
+			return true
+		check_point += (web_direction * STEP)
+	return false
 
 func tile_distance(tile_position):
 	return pow(tile_position.x - position.x, 2) + pow(tile_position.y - position.y, 2) - pow(WEB_RADIUS, 2)
