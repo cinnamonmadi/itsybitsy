@@ -24,13 +24,13 @@ var direction = Vector2.ZERO
 var grounded = false
 var velocity = Vector2.ZERO
 var web_position = null
+var web_target = null
 var swing_speed = 0
 var wall_climb_direction = 0
 var ceiling_climbing = false
 
 func _ready():
-	web.add_point(Vector2.ZERO)
-	web.add_point(Vector2.ZERO)
+	pass
 
 func _physics_process(_delta):
 	handle_input()
@@ -75,7 +75,7 @@ func handle_input():
 		web_release()
 
 func move():
-	if not grounded and wall_climb_direction == 0 and not ceiling_climbing and web_position != null:
+	if not grounded and wall_climb_direction == 0 and not ceiling_climbing and web_target != null and web_position == web_target:
 		# Web pulls player towards the bottom
 		var web_pull_direction = 0
 		if web_position.x - position.x > 5:
@@ -213,13 +213,25 @@ func update_sprite():
 			sprite.flip_h = not sprite.flip_h
 
 func update_web():
-	if web_position == null:
-		web.set_point_position(1, Vector2.ZERO)
-	else:
-		if check_web_collision():
-			web_position = null
+	if web_target != null and web_position != web_target:
+		var step = 20
+		if web_position.distance_to(web_target) <= step:
+			web_position = web_target
+			web_connect()
 		else:
-			web.set_point_position(1, web_position - position)
+			web_position += web_position.direction_to(web_target) * step
+			if web_position == web_target:
+				web_connect()
+	if web_target != null and web_position == web_target and check_web_collision():
+		web_release()
+	if web_position == null:
+		web.visible = false
+		web.region_rect.size.x = 0
+	else:
+		web.visible = true
+		web.region_rect.size.x = position.distance_to(web_position)
+		web.rotation = (web_position - position).angle()
+	web.offset.x = web.region_rect.size.x / 2
 
 func check_web_collision():
 	var STEP = 8
@@ -275,11 +287,15 @@ func nearest_web_tile():
 	return nearest_tile
 
 func web_sling():
-	web_position = nearest_web_tile()
-	if web_position != null:
-		swing_speed = velocity.length()
-		if position.x - web_position.x > 5:
-			swing_speed *= -1
+	web_target = nearest_web_tile()
+	if web_target != null:
+		web_position = position
+
+func web_connect():
+	swing_speed = velocity.length()
+	if position.x - web_position.x > 5:
+		swing_speed *= -1
 
 func web_release():
+	web_target = null
 	web_position = null
