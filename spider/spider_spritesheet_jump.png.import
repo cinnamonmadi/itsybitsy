@@ -2,15 +2,15 @@
 
 importer="texture"
 type="StreamTexture"
-path="res://.import/spider.png-6c2efa64c7fd298ccb93c734a1c22af8.stex"
+path="res://.import/spider_spritesheet_jump.png-aca95d3a43786ac9707881fa1033c1af.stex"
 metadata={
 "vram_texture": false
 }
 
 [deps]
 
-source_file="res://spider/spider.png"
-dest_files=[ "res://.import/spider.png-6c2efa64c7fd298ccb93c734a1c22af8.stex" ]
+source_file="res://spider/spider_spritesheet_jump.png"
+dest_files=[ "res://.import/spider_spritesheet_jump.png-aca95d3a43786ac9707881fa1033c1af.stex" ]
 
 [params]
 
@@ -28,6 +28,7 @@ process/fix_alpha_border=true
 process/premult_alpha=false
 process/HDR_as_SRGB=false
 process/invert_color=false
+process/normal_map_invert_y=false
 stream=false
 size_limit=0
 detect_3d=true

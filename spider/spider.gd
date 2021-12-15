@@ -155,7 +155,7 @@ func move():
 		for i in get_slide_count():
 			var wall_position = position + (Vector2(velocity.x, 0).normalized() * (float(TILE_SIZE) / 2))
 			var wall_tile = tilemap.world_to_map(wall_position)
-			if tilemap.get_cellv(wall_tile) == 1:
+			if tilemap.get_cellv(wall_tile) != -1:
 				wall_climb_direction = Vector2(velocity.x, 0).normalized().x
 				break
 	ceiling_climbing = false
@@ -163,7 +163,7 @@ func move():
 		for i in get_slide_count():
 			var ceiling_position = position + (Vector2(0, velocity.y).normalized() * (float(TILE_SIZE) / 2))
 			var ceiling_tile = tilemap.world_to_map(ceiling_position)
-			if tilemap.get_cellv(ceiling_tile) == 1:
+			if tilemap.get_cellv(ceiling_tile) != -1:
 				ceiling_climbing = true
 				break
 
@@ -225,9 +225,8 @@ func check_web_collision():
 	var STEP = 8
 	var web_direction = (web_position - position).normalized()
 	var check_point = position + (web_direction * STEP)
-	while check_point.distance_to(web_position) > STEP:
+	while check_point.distance_to(web_position) > TILE_SIZE * 2:
 		if tilemap.get_cellv(tilemap.world_to_map(check_point)) != -1:
-			print("player tile: ", tilemap.world_to_map(position), " vs failed pos: ", tilemap.world_to_map(check_point), " vs web tile: ", tilemap.world_to_map(web_position))
 			return true
 		check_point += (web_direction * STEP)
 	return false
