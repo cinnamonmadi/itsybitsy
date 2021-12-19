@@ -6,6 +6,7 @@ onready var coyote_timer = $coyote_timer
 onready var web = $web
 onready var web_raycast = $web_raycast
 onready var tilemap = get_parent().find_node("tilemap")
+onready var webmap = get_parent().find_node("webmap")
 
 const SPEED = 150
 const GRAVITY = 6
@@ -17,7 +18,7 @@ const COYOTE_TIME_DURATION = 0.06
 const WEB_RADIUS = 150
 const WEB_IMPULSE_SPEED = 5
 const WEB_CLIMB_SPEED = 30
-const TILE_SIZE = 32
+const TILE_SIZE = 16
 
 var v_direction = 0
 var direction = Vector2.ZERO
@@ -28,6 +29,7 @@ var web_target = null
 var swing_speed = 0
 var wall_climb_direction = 0
 var ceiling_climbing = false
+var max_swing_speed = MAX_SWING_SPEED
 
 func _ready():
 	pass
@@ -92,8 +94,10 @@ func move():
 		swing_speed *= 0.99
 
 		# Limit the swing speed
-		if swing_speed > MAX_SWING_SPEED:
-			swing_speed = MAX_SWING_SPEED
+		if swing_speed < MAX_SWING_SPEED:
+			max_swing_speed = MAX_SWING_SPEED
+		if swing_speed > max_swing_speed:
+			swing_speed = max_swing_speed
 
 		# Set velocity based on the swing direction
 		var swing_direction = 0
@@ -153,7 +157,7 @@ func move():
 	wall_climb_direction = 0
 	if velocity.x != 0 and not grounded and not ceiling_climbing:
 		for i in get_slide_count():
-			var wall_position = position + (Vector2(velocity.x, 0).normalized() * (float(TILE_SIZE) / 2))
+			var wall_position = position + (Vector2(velocity.x, 0).normalized() * (float(TILE_SIZE) / 1.5))
 			var wall_tile = tilemap.world_to_map(wall_position)
 			if tilemap.get_cellv(wall_tile) != -1:
 				wall_climb_direction = Vector2(velocity.x, 0).normalized().x
@@ -270,7 +274,7 @@ func nearest_web_tile():
 
 			var dist_min = min(dist_top_left, min(dist_top_right, min(dist_bottom_left, dist_bottom_right)))
 
-			if dist_min > WEB_RADIUS or tilemap.get_cellv(tile_point) != 1:
+			if dist_min > WEB_RADIUS or webmap.get_cellv(tile_point) != 1:
 				continue
 
 			var tile_center = tile_position + Vector2(TILE_SIZE / 2.0, TILE_SIZE / 2.0)
@@ -293,6 +297,7 @@ func web_sling():
 
 func web_connect():
 	swing_speed = velocity.length()
+	max_swing_speed = max(MAX_SWING_SPEED, swing_speed)
 	if position.x - web_position.x > 5:
 		swing_speed *= -1
 
