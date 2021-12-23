@@ -1,10 +1,12 @@
 extends KinematicBody2D
 
 onready var sprite = $sprite
+onready var collider = $collider
 onready var jump_input_timer = $jump_input_timer
 onready var coyote_timer = $coyote_timer
 onready var web = $web
 onready var web_raycast = $web_raycast
+onready var camera = get_parent().find_node("camera")
 onready var tilemap = get_parent().find_node("tilemap")
 onready var webmap = get_parent().find_node("webmap")
 
@@ -19,6 +21,9 @@ const WEB_RADIUS = 150
 const WEB_IMPULSE_SPEED = 5
 const WEB_CLIMB_SPEED = 30
 const TILE_SIZE = 16
+const COLLISION_LAYER_RAYCAST = 1
+const ATTRIBUTE_WEB = 1
+const ATTRIBUTE_WET = 2
 
 var v_direction = 0
 var direction = Vector2.ZERO
@@ -30,15 +35,19 @@ var swing_speed = 0
 var wall_climb_direction = 0
 var ceiling_climbing = false
 var max_swing_speed = MAX_SWING_SPEED
+var in_camera_zone = false
+var enable_input = true
 
 func _ready():
 	pass
 
 func _physics_process(_delta):
-	handle_input()
-	move()
+	if enable_input:
+		handle_input()
+		move()
 	update_web()
 	update_sprite()
+	update_camera()
 
 func handle_input():
 	if Input.is_action_just_pressed("left"):
@@ -159,15 +168,15 @@ func move():
 		for i in get_slide_count():
 			var wall_position = position + (Vector2(velocity.x, 0).normalized() * (float(TILE_SIZE) / 1.5))
 			var wall_tile = tilemap.world_to_map(wall_position)
-			if tilemap.get_cellv(wall_tile) != -1:
+			if tilemap.get_cellv(wall_tile) != -1 and webmap.get_cellv(wall_tile) != ATTRIBUTE_WET:
 				wall_climb_direction = Vector2(velocity.x, 0).normalized().x
 				break
 	ceiling_climbing = false
 	if wall_climb_direction == 0 and velocity.y < 0:
 		for i in get_slide_count():
-			var ceiling_position = position + (Vector2(0, velocity.y).normalized() * (float(TILE_SIZE) / 2))
+			var ceiling_position = position + (Vector2(0, velocity.y).normalized() * (float(TILE_SIZE) / 1.5))
 			var ceiling_tile = tilemap.world_to_map(ceiling_position)
-			if tilemap.get_cellv(ceiling_tile) != -1:
+			if tilemap.get_cellv(ceiling_tile) != -1 and webmap.get_cellv(ceiling_tile) != ATTRIBUTE_WET:
 				ceiling_climbing = true
 				break
 
@@ -274,7 +283,7 @@ func nearest_web_tile():
 
 			var dist_min = min(dist_top_left, min(dist_top_right, min(dist_bottom_left, dist_bottom_right)))
 
-			if dist_min > WEB_RADIUS or webmap.get_cellv(tile_point) != 1:
+			if dist_min > WEB_RADIUS or webmap.get_cellv(tile_point) == ATTRIBUTE_WEB:
 				continue
 
 			var tile_center = tile_position + Vector2(TILE_SIZE / 2.0, TILE_SIZE / 2.0)
@@ -304,3 +313,30 @@ func web_connect():
 func web_release():
 	web_target = null
 	web_position = null
+
+func update_camera():
+	if camera == null:
+		return
+	if not in_camera_zone:
+		camera.position = position
+
+func camera_enter_zone(new_position):
+	if camera == null:
+		return
+	camera.position = new_position
+	in_camera_zone = true
+
+func camera_exit_zone():
+	if camera == null:
+		return
+	in_camera_zone = false
+
+
+func disable():
+	web_release()
+	enable_input = false
+	collider.disabled = true
+	set_collision_layer_bit(COLLISION_LAYER_RAYCAST, false)
+
+func die():
+	visible = false
